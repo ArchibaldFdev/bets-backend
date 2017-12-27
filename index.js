@@ -42,7 +42,6 @@ const userSchema = new mongoose.Schema({
   firstName: String,
   lastName: String,
   fathersName : String,
-  login : String,
   phone : String,
   email: {
     type: String,
@@ -90,8 +89,8 @@ passport.use(new LocalStrategy({
     passwordField: 'password',
     session: false
   },
-  function (login, password, done) {
-    User.findOne({$or:[ {'email': login}, {'login': login}]}, (err, user) => {
+  function (email, password, done) {
+    User.findOne({email}, (err, user) => {
       if (err) {
         return done(err);
       }
