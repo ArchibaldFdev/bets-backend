@@ -58,6 +58,19 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
+const matchSchema = new mongoose.Schema({
+  sport: String,
+  country: String,
+  league : String,
+  team_1 : String,
+  team_2 : String,
+  date : String,
+  time: String,
+  bets : {},
+}, {
+  timestamps: true
+});
+
 userSchema.virtual('password')
 .set(function (password) {
   this._plainPassword = password;
@@ -81,6 +94,7 @@ userSchema.methods.checkPassword = function (password) {
 };
 
 const User = mongoose.model('User', userSchema);
+const Match = mongoose.model('Match', matchSchema);
 
 //----------Passport Local Strategy--------------//
 
@@ -140,6 +154,31 @@ router.post('/user', async(ctx, next) => {
     ctx.body = err;
   }
 });
+
+router.post('/match', async(ctx, next) => {
+  try {
+    if(ctx.request.body.length > 1) {
+      await Match.remove();
+    }
+    ctx.body = await Match.insertMany(ctx.request.body);
+  }
+  catch (err) {
+    ctx.status = 400;
+    ctx.body = err;
+  }
+});
+
+router.get('/match', async(ctx, next) => {
+  try {
+    ctx.body = await Match.find({});
+  }
+  catch (err) {
+    ctx.status = 400;
+    ctx.body = err;
+  }
+});
+
+
 
 //маршрут для локальной авторизации и создания JWT при успешной авторизации
 
