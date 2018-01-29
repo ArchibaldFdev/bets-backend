@@ -35,6 +35,9 @@ mongoose.Promise = Promise; // Просим Mongoose использовать с
 mongoose.set('debug', true);  // Просим Mongoose писать все запросы к базе в консоль. Удобно для отладки кода
 mongoose.connect('mongodb://localhost/bets'); // Подключаемся к базе test на локальной машине. Если базы нет, она будет создана автоматически.
 mongoose.connection.on('error', console.error);
+mongoose.connection.on('connected', function() {
+  createAdminUser();
+});
 
 //---------Схема и модель пользователя------------------//
 
@@ -48,11 +51,12 @@ const userSchema = new mongoose.Schema({
     required: 'Укажите e-mail',
     unique: 'Такой e-mail уже существует'
   },
-  balanceFree : Number,
-  balanceGame : Number,
+  balanceFree : { type: Number, default: 0},
+  balanceGame : { type: Number, default: 0},
   passwordHash: String,
   status : String,
   comments : String,
+  role : String,
   salt: String,
 }, {
   timestamps: true
@@ -170,13 +174,32 @@ router.post('/match', async(ctx, next) => {
 
 router.get('/match', async(ctx, next) => {
   try {
-    ctx.body = await Match.find({});
+    const matches = await Match.find({});
+    ctx.body = parseData(matches);
   }
   catch (err) {
     ctx.status = 400;
     ctx.body = err;
   }
 });
+
+// router.get('/match', async(ctx, next) => {
+//   await passport.authenticate('jwt', async(err, user) => {
+//     if (user) {
+//       try {
+//         const matches = await Match.find({});
+//         ctx.body = parseData(matches);
+//       }
+//       catch (err) {
+//         ctx.status = 400;
+//         ctx.body = err;
+//       }
+//     } else {
+//       ctx.body = "No such user";
+//       console.log("err", err)
+//     }
+//   })(ctx, next)
+// });
 
 
 
@@ -194,8 +217,19 @@ router.post('/login', async(ctx, next) => {
         email: user.email
       };
       const token = jwt.sign(payload, jwtsecret); //здесь создается JWT
-      
-      ctx.body = {user: user.login, token: 'JWT ' + token};
+      user.token = 'JWT ' + token;
+      const userData = {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fathersName : user.fathersName,
+        phone : user.phone,
+        email: user.email,
+        balanceFree : user.balanceFree,
+        balanceGame : user.balanceGame,
+        role : user.role,
+        token : 'JWT ' + token
+      };
+      ctx.body = {user : userData};
     }
   })(ctx, next);
   
@@ -204,7 +238,7 @@ router.post('/login', async(ctx, next) => {
 // маршрут для авторизации по токену
 
 router.get('/custom', async(ctx, next) => {
-  
+
   await passport.authenticate('jwt', function (err, user) {
     if (user) {
       ctx.body = "hello " + user.displayName;
@@ -230,3 +264,62 @@ io.on('connection', socketioJwt.authorize({
     console.log(data);
   })
 });
+
+const createAdminUser = async () => {
+  try {
+    let user = await User.findOne({role: 'admin'});
+    if (!user) {
+      console.log('ADMIN IS ABSENT!!!');
+      console.log('CREATE ADMIN USER!');
+      user = {
+        firstName: 'Admin',
+        lastName: 'Admin',
+        fathersName: 'Admin',
+        email: 'admin@mail.com',
+        password: 'admin',
+        role : 'admin'
+      };
+      let admin = await User.create(user);
+      if(admin) {
+        console.log('ADMIN IS CREATED!!!');
+      }
+    }
+  }
+  catch(err)  {
+    console.log('USER NOT CREATED!');
+  }
+}
+
+const parseData = (data) => {
+  let matches = {};
+  let elementExist = (dataArray, dataField, value) => {
+    return dataArray.some((elem) => elem[dataField] == value)
+  };
+  matches.sports = [];
+  data.forEach((match) => {
+    if(!elementExist(matches.sports, 'sport', match.sport)) {
+      matches.sports.push({"sport" : match.sport, "countries" : []})
+    }
+    matches.sports.forEach((sport) => {
+      if(sport.sport === match.sport && !elementExist(sport.countries, 'country', match.country)) {
+        sport.countries.push({"country" : match.country, "leagues" : []})
+      }
+      sport.selected = false;
+      sport.countries.forEach((country) => {
+        if(country.country === match.country && !elementExist(country.leagues, 'league', match.league)) {
+          country.leagues.push({"league" : match.league, "matches" : []})
+        }
+        country.selected = false;
+        country.leagues.forEach((league) => {
+          league.selected = false;
+          if(country.country === match.country && league.league === match.league) {
+            league.matches.push(match);
+          }
+        })
+      })
+    })
+  });
+
+  console.log("PARSED OBJECT=", matches);
+  return matches;
+}
