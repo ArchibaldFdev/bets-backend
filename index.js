@@ -75,8 +75,31 @@ const matchSchema = new mongoose.Schema({
   timestamps: true
 });
 
+const betSchema = new mongoose.Schema({
+  userId: String,
+  match: {},
+  betValue : Number,
+  betType : String,
+  status : {'type' : String, default: 'active'},
+  comment : {'type' : String, default: 'Its allright!'}
+  }, {
+  timestamps: true
+});
+
+const depositSchema = new mongoose.Schema({
+  userId: String,
+  depositValue : Number,
+  paymentType : String,
+  phone : String,
+  status : {'type' : String, default: 'pending'},
+  comment : {'type' : String, default: 'Its allright!'}
+}, {
+  timestamps: true
+});
+
 userSchema.virtual('password')
 .set(function (password) {
+  console.log('MONGO VIRT METHOD  PASSWORD=,',password);
   this._plainPassword = password;
   if (password) {
     this.salt = crypto.randomBytes(128).toString('base64');
@@ -99,6 +122,8 @@ userSchema.methods.checkPassword = function (password) {
 
 const User = mongoose.model('User', userSchema);
 const Match = mongoose.model('Match', matchSchema);
+const Bet = mongoose.model('Bet', betSchema);
+const Deposit = mongoose.model('Deposit', depositSchema);
 
 //----------Passport Local Strategy--------------//
 
@@ -183,6 +208,70 @@ router.get('/match', async(ctx, next) => {
   }
 });
 
+router.get('/bets', async(ctx, next) => {
+  try {
+    const bets = await Bet.find({});
+    ctx.body = bets;
+  }
+  catch (err) {
+    ctx.status = 400;
+    ctx.body = err;
+  }
+});
+
+router.get('/bets/:userId', async(ctx, next) => {
+  try {
+    const bets = await Bet.find({"userId" : ctx.params.userId});
+    ctx.body = bets;
+  }
+  catch (err) {
+    ctx.status = 400;
+    ctx.body = err;
+  }
+});
+
+router.put('/user/:userId', async(ctx, next) => {
+  try {
+    let user = await User.findOne({"_id" : ctx.params.userId});
+    if(ctx.request.body.password) {
+      if(user.checkPassword(ctx.request.body.oldPassword)) {
+        user.password = ctx.request.body.password;
+        await user.save();
+        ctx.body = user;
+      }
+      else {
+        ctx.status = 400;
+        ctx.body = 'Текущий пароль введен неверно!Повторите ввод.';
+      }
+    }
+    else {
+      user = await User.findOneAndUpdate({"_id": ctx.params.userId}, {"$set" : {"email" :ctx.request.body.email}});
+      ctx.body = {newEmail : user.email};
+    }
+  }
+  catch (err) {
+    ctx.status = 400;
+    ctx.body = err;
+  }
+});
+
+router.post('/deposit/:userId', async(ctx, next) => {
+  try {
+    const deposit = await Deposit.create(ctx.request.body);
+    if(deposit) {
+      const user = await User.findOne({"_id" : ctx.params.userId});
+      user.balanceFree = Number(ctx.request.body.depositValue) + user.balanceFree;
+      await user.save();
+      ctx.body = {balanceFree : user.balanceFree};
+    }
+  }
+  catch (err) {
+    ctx.status = 400;
+    ctx.body = err;
+  }
+});
+
+
 // router.get('/match', async(ctx, next) => {
 //   await passport.authenticate('jwt', async(err, user) => {
 //     if (user) {
@@ -219,6 +308,7 @@ router.post('/login', async(ctx, next) => {
       const token = jwt.sign(payload, jwtsecret); //здесь создается JWT
       user.token = 'JWT ' + token;
       const userData = {
+        userId : user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         fathersName : user.fathersName,
@@ -248,6 +338,23 @@ router.get('/custom', async(ctx, next) => {
     }
   } )(ctx, next)
   
+});
+
+router.post('/bet', async(ctx, next) => {
+  try {
+    const bet = await Bet.create(ctx.request.body);
+    if(bet) {
+      const user = await User.findOne({"_id" :ctx.request.body.userId});
+      user.balanceFree = user.balanceFree - Number(ctx.request.body.betValue);
+      user.balanceGame = Number(ctx.request.body.betValue) + user.balanceGame;
+      await user.save();
+      ctx.body = {balanceFree : user.balanceFree, balanceGame : user.balanceGame};
+    }
+  }
+  catch (err) {
+    ctx.status = 400;
+    ctx.body = err;
+  }
 });
 
 //---Socket Communication-----//
