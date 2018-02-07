@@ -77,6 +77,7 @@ const matchSchema = new mongoose.Schema({
 
 const betSchema = new mongoose.Schema({
   userId: String,
+  user : {},
   match: {},
   betValue : Number,
   betType : String,
@@ -88,6 +89,7 @@ const betSchema = new mongoose.Schema({
 
 const depositSchema = new mongoose.Schema({
   userId: String,
+  user : {},
   depositValue : Number,
   paymentType : String,
   phone : String,
@@ -186,10 +188,10 @@ router.post('/user', async(ctx, next) => {
 
 router.post('/match', async(ctx, next) => {
   try {
-    if(ctx.request.body.length > 1) {
+    if(ctx.request.body.type === 'update') {
       await Match.remove();
     }
-    ctx.body = await Match.insertMany(ctx.request.body);
+    ctx.body = await Match.insertMany(ctx.request.body.matches);
   }
   catch (err) {
     ctx.status = 400;
@@ -257,12 +259,16 @@ router.put('/user/:userId', async(ctx, next) => {
 
 router.post('/deposit/:userId', async(ctx, next) => {
   try {
-    const deposit = await Deposit.create(ctx.request.body);
-    if(deposit) {
-      const user = await User.findOne({"_id" : ctx.params.userId});
-      user.balanceFree = Number(ctx.request.body.depositValue) + user.balanceFree;
-      await user.save();
-      ctx.body = {balanceFree : user.balanceFree};
+    const user = await User.findOne({"_id" : ctx.params.userId});
+    if(user) {
+      let createDepositData = ctx.request.body;
+      createDepositData.user = user;
+      const deposit = await Deposit.create(createDepositData);
+      if(deposit) {
+        user.balanceFree = Number(ctx.request.body.depositValue) + user.balanceFree;
+        await user.save();
+        ctx.body = {balanceFree : user.balanceFree};
+      }
     }
   }
   catch (err) {
@@ -270,6 +276,18 @@ router.post('/deposit/:userId', async(ctx, next) => {
     ctx.body = err;
   }
 });
+
+router.get('/deposit', async(ctx, next) => {
+  try {
+    const deposits = await Deposit.find({});
+    ctx.body = deposits;
+  }
+  catch (err) {
+    ctx.status = 400;
+    ctx.body = err;
+  }
+});
+
 
 
 // router.get('/match', async(ctx, next) => {
@@ -342,13 +360,17 @@ router.get('/custom', async(ctx, next) => {
 
 router.post('/bet', async(ctx, next) => {
   try {
-    const bet = await Bet.create(ctx.request.body);
-    if(bet) {
-      const user = await User.findOne({"_id" :ctx.request.body.userId});
-      user.balanceFree = user.balanceFree - Number(ctx.request.body.betValue);
-      user.balanceGame = Number(ctx.request.body.betValue) + user.balanceGame;
-      await user.save();
-      ctx.body = {balanceFree : user.balanceFree, balanceGame : user.balanceGame};
+    const user = await User.findOne({"_id" :ctx.request.body.userId});
+    if(user) {
+      let createBetData = ctx.request.body;
+      createBetData.user = user;
+      const bet = await Bet.create(createBetData);
+      if(bet) {
+        user.balanceFree = user.balanceFree - Number(ctx.request.body.betValue);
+        user.balanceGame = Number(ctx.request.body.betValue) + user.balanceGame;
+        await user.save();
+        ctx.body = {balanceFree : user.balanceFree, balanceGame : user.balanceGame};
+      }
     }
   }
   catch (err) {
