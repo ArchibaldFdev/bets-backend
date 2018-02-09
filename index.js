@@ -359,7 +359,7 @@ router.get('/custom', async(ctx, next) => {
 });
 
 router.post('/yandex', async(ctx, next) => {
-  console.log('Yandex Responce=',ctx.body);
+  console.log('Yandex Responce=',ctx);
 });
 
 router.post('/bet', async(ctx, next) => {
