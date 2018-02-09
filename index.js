@@ -358,6 +358,10 @@ router.get('/custom', async(ctx, next) => {
   
 });
 
+router.get('/yandex', async(ctx, next) => {
+  console.log('Yandex Responce=',ctx.body);
+});
+
 router.post('/bet', async(ctx, next) => {
   try {
     const user = await User.findOne({"_id" :ctx.request.body.userId});
