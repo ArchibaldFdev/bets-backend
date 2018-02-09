@@ -358,7 +358,7 @@ router.get('/custom', async(ctx, next) => {
   
 });
 
-router.get('/yandex', async(ctx, next) => {
+router.post('/yandex', async(ctx, next) => {
   console.log('Yandex Responce=',ctx.body);
 });
 
