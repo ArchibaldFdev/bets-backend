@@ -359,7 +359,9 @@ router.get('/custom', async(ctx, next) => {
 });
 
 router.post('/yandex', async(ctx, next) => {
-  console.log('Yandex Responce=',ctx);
+  console.log('Yandex Request Boby=',ctx.request.body);
+  console.log('Yandex Rquest Params =',ctx.params);
+  ctx.status = 200;
 });
 
 router.post('/bet', async(ctx, next) => {
