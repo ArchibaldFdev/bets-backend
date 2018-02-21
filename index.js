@@ -29,7 +29,7 @@ app.use(cors());
 
 app.use(passport.initialize()); // сначала passport
 app.use(router.routes()); // потом маршруты
-const server = app.listen(3112);// запускаем сервер на порту 3112
+const server = app.listen(3112,'127.0.0.1');// запускаем сервер на порту 3112
 
 mongoose.Promise = Promise; // Просим Mongoose использовать стандартные Промисы
 mongoose.set('debug', true);  // Просим Mongoose писать все запросы к базе в консоль. Удобно для отладки кода
