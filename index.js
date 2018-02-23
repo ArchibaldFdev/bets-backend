@@ -395,7 +395,7 @@ router.post('/yandex', async(ctx, next) => {
     const user = await User.findOne({"_id" :ctx.request.body.label});
     console.log('YANDEX=',ctx.request.body);
     console.log('USER=',user);
-    if(user && !Boolean(ctx.request.body.unaccepted) && !Boolean(ctx.request.body.codepro)) {
+    if(user && ctx.request.body.unaccepted != 'true' && ctx.request.body.codepro != 'true') {
       console.log('FIRST IF');
       user.balanceFree = user.balanceFree + Number(ctx.request.body.amount);
       await user.save();
