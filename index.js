@@ -257,6 +257,38 @@ router.put('/user/:userId', async(ctx, next) => {
   }
 });
 
+router.get('/user/:userId', async(ctx, next) => {
+  try {
+    let user = await User.findOne({"_id" : ctx.params.userId});
+    console.log('USER=',user);
+    if(user) {
+      const payload = {
+        id: user.id,
+        login: user.login,
+        email: user.email
+      };
+      const token = jwt.sign(payload, jwtsecret); //здесь создается JWT
+      const userData = {
+        userId : user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fathersName : user.fathersName,
+        phone : user.phone,
+        email: user.email,
+        balanceFree : user.balanceFree,
+        balanceGame : user.balanceGame,
+        role : user.role,
+        token : 'JWT ' + token
+      };
+      ctx.body = {user : userData};
+    }
+  }
+  catch (err) {
+    ctx.status = 400;
+    ctx.body = err;
+  }
+});
+
 router.post('/deposit/:userId', async(ctx, next) => {
   try {
     const user = await User.findOne({"_id" : ctx.params.userId});
@@ -359,9 +391,26 @@ router.get('/custom', async(ctx, next) => {
 });
 
 router.post('/yandex', async(ctx, next) => {
-  console.log('Yandex Request Boby=',ctx.request.body);
-  console.log('Yandex Rquest Params =',ctx.params);
-  ctx.status = 200;
+  try {
+    const user = await User.findOne({"_id" :ctx.request.body.label});
+    if(user && !ctx.request.body.unaccepted && !ctx.request.body.codepro) {
+      user.balanceFree = user.balanceFree + Number(ctx.request.body.amount);
+      await user.save();
+      let depositData =  {
+        userId : user._id,
+        user : user,
+        depositValue : Number(ctx.request.body.amount),
+        paymentType : 'yandex-money',
+        status : 'ok'
+      };
+      await Deposit.create(depositData);
+      ctx.status = 200;
+    }
+  }
+  catch (err) {
+    ctx.status = 400;
+    ctx.body = err;
+  }
 });
 
 router.post('/bet', async(ctx, next) => {
